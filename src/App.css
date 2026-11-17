@@ -854,3 +854,151 @@ section { width: 100%; padding: 8rem 0; display: flex; justify-content: center; 
   .modal-gallery-thumbs { gap: 0.35rem; }
   .modal-gallery-thumb { width: calc(25% - 0.26rem); }
 }
+
+/* ═══════════ Système de jeu ═══════════ */
+
+/* Barre d'XP */
+.xp-bar { position: fixed; top: 0; left: 0; width: 100%; height: 6px; z-index: 1100; background: rgba(9,22,41,0.6); }
+.xp-bar-fill { height: 100%; background: linear-gradient(90deg, var(--sun-gold), var(--sky-cyan)); box-shadow: 0 0 10px var(--glow-gold); transition: width 0.15s linear; }
+.nav { top: 6px; }
+
+/* HUD */
+.hud { position: fixed; bottom: 1rem; left: 1rem; z-index: 1050; display: flex; align-items: center; gap: 0.8rem; font-size: 0.78rem; color: var(--text-muted); background: rgba(9,22,41,0.92); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.8rem; backdrop-filter: blur(8px); }
+.hud-gems { color: var(--sun-gold); animation: hud-bump 0.35s ease; }
+@keyframes hud-bump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+/* Notification de succès */
+.achievement-toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; gap: 0.9rem; align-items: center; background: var(--card-blue); border: 1px solid var(--sun-gold); border-radius: 8px; padding: 0.8rem 1.2rem; box-shadow: 0 0 24px var(--glow-gold); animation: toast-in 0.35s ease; max-width: calc(100vw - 2rem); }
+.achievement-toast p { color: var(--text-muted); font-size: 0.82rem; }
+.achievement-toast strong { color: var(--sun-gold); font-size: 0.9rem; }
+.achievement-icon { font-size: 1.8rem; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+
+/* Gemmes cachées */
+button.section-divider-gem { position: relative; background: none; border: none; padding: 0.4rem; cursor: pointer; border-radius: 50%; transition: transform 0.2s, filter 0.2s; }
+button.section-divider-gem:hover { transform: rotate(45deg) scale(1.3); filter: drop-shadow(0 0 8px var(--sun-gold)); }
+button.section-divider-gem--found { transform: scale(1.4); filter: drop-shadow(0 0 10px var(--sun-gold)); cursor: default; }
+button.section-divider-gem:focus-visible { outline: 2px solid var(--sky-cyan); outline-offset: 2px; }
+.gem-pop { position: absolute; left: 50%; top: -0.4rem; transform: translateX(-50%); color: var(--sun-gold); font-size: 0.8rem; font-weight: 600; white-space: nowrap; pointer-events: none; animation: gem-pop 1.2s ease forwards; }
+@keyframes gem-pop { 0% { opacity: 0; transform: translate(-50%, 6px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -26px); } }
+
+/* Cartes projet */
+.project-flags { position: absolute; top: 0.6rem; left: 0.6rem; z-index: 3; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.project-flag { font-size: 0.68rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(9,22,41,0.88); border: 1px solid var(--border); color: var(--text-muted); }
+.project-flag--reco { color: var(--sun-gold); border-color: var(--sun-gold); }
+.project-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; background: linear-gradient(135deg, var(--deep-sky), var(--mid-blue)); }
+
+/* Fiche de personnage : radar + coffre */
+.player-sheet { display: grid; grid-template-columns: 1fr 1.3fr; gap: 2rem; margin-top: 3rem; padding: 1.8rem; background: var(--card-blue); border: 1px solid var(--border); border-radius: 8px; }
+.player-sheet-title { font-family: 'Cinzel', serif; font-size: 1.05rem; color: var(--sky-cyan); margin-bottom: 0.6rem; }
+.player-sheet-caption { color: var(--text-muted); font-size: 0.85rem; }
+.player-sheet-caption strong { color: var(--sun-gold); }
+.radar { width: 100%; max-width: 340px; display: block; margin: 0.5rem auto; }
+.radar-ring { fill: none; stroke: var(--border); stroke-width: 1; }
+.radar-axis { stroke: var(--border); stroke-width: 1; }
+.radar-ghost { fill: none; stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.45; }
+.radar-fill { fill: rgba(109,216,240,0.3); stroke: var(--sky-cyan); stroke-width: 2; transition: all 0.4s ease; }
+.radar-label { fill: var(--text-muted); font-size: 12px; font-family: 'Outfit', sans-serif; }
+.radar-label--hl { fill: var(--sun-gold); font-weight: 600; }
+
+/* Coffre */
+.vault-list { list-style: none; display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1rem; }
+.vault-item { border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem 1rem; background: var(--night-blue); }
+.vault-item--open { border-color: var(--sun-gold); }
+.vault-item-head { display: flex; align-items: center; gap: 0.8rem; }
+.vault-item-icon { font-size: 1.3rem; }
+.vault-item-text { flex: 1; display: flex; flex-direction: column; font-size: 0.85rem; }
+.vault-item-text span { color: var(--text-muted); }
+.vault-buy { color: var(--sun-gold); border-color: var(--sun-gold); background: transparent; padding: 0.3em 0.8em; font-size: 0.85rem; }
+.vault-buy:disabled { opacity: 0.4; cursor: not-allowed; }
+.vault-item-body { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid var(--border); font-size: 0.88rem; color: var(--text); }
+.vault-list-points { padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.vault-note { color: var(--text-muted); font-size: 0.78rem; margin-top: 0.6rem; }
+.state-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.state-flow span { padding: 0.3rem 0.7rem; border: 1px solid var(--sky-cyan); border-radius: 4px; color: var(--sky-cyan); font-size: 0.82rem; }
+.state-flow i { color: var(--sun-gold); font-style: normal; }
+
+/* Arbre de compétences */
+.tree-counter { text-align: center; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+.tree-branches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+.tree-branch { display: flex; flex-direction: column; align-items: center; }
+.tree-branch-title { font-family: 'Cinzel', serif; font-size: 0.9rem; color: var(--castle-rose); margin-bottom: 1rem; }
+.tree-link { width: 2px; height: 1.4rem; background: var(--border); transition: background 0.3s, box-shadow 0.3s; }
+.tree-link--on { background: var(--sun-gold); box-shadow: 0 0 8px var(--glow-gold); }
+.tree-node { position: relative; width: 100%; max-width: 190px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1rem 0.6rem; background: var(--card-blue); border: 1px solid var(--border); border-radius: 8px; color: var(--text); transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; }
+.tree-node-name { font-size: 0.85rem; text-align: center; }
+.tree-node--available { border-color: var(--sky-cyan); box-shadow: 0 0 14px var(--glow-cyan); }
+.tree-node--available:hover { transform: translateY(-3px); }
+.tree-node--learned { border-color: var(--sun-gold); box-shadow: 0 0 14px var(--glow-gold); }
+.tree-node--selected { background: var(--mid-blue); }
+.tree-node--locked { opacity: 0.5; cursor: not-allowed; }
+.tree-node--locked .skill-pill-icon { filter: grayscale(1); }
+.tree-node:focus-visible { outline: 2px solid var(--sky-cyan); outline-offset: 2px; }
+.tree-lock { position: absolute; top: 0.4rem; right: 0.5rem; font-size: 0.8rem; }
+.tree-node--shake { animation: tree-shake 0.4s ease; }
+.tree-hint { min-height: 1.4rem; margin-top: 1rem; text-align: center; color: var(--castle-rose); font-size: 0.85rem; }
+@keyframes tree-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+/* Grille « allume tout » */
+.lock { margin: 2rem auto 0; max-width: 340px; text-align: center; padding: 1.5rem; background: var(--card-blue); border: 1px solid var(--border); border-radius: 8px; }
+.lock-title { color: var(--sky-cyan); font-weight: 500; margin-bottom: 0.3rem; }
+.lock-help { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem; }
+.lock-grid { display: grid; grid-template-columns: repeat(3, 64px); gap: 0.5rem; justify-content: center; margin-bottom: 0.8rem; }
+.lock-cell { width: 64px; height: 64px; padding: 0; border-radius: 6px; background: var(--night-blue); border: 1px solid var(--border); transition: background 0.2s, box-shadow 0.2s; }
+.lock-cell--on { background: var(--sun-gold); box-shadow: 0 0 14px var(--glow-gold); }
+.lock-cell:focus-visible { outline: 2px solid var(--sky-cyan); outline-offset: 2px; }
+.lock-moves { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.8rem; }
+.lock-actions { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+.lock-btn { font-size: 0.82rem; padding: 0.4em 0.9em; background: transparent; color: var(--text-muted); border-color: var(--border); }
+
+@media (max-width: 900px) {
+  .player-sheet { grid-template-columns: 1fr; }
+  .tree-branches { grid-template-columns: repeat(2, 1fr); row-gap: 2rem; }
+}
+@media (max-width: 700px) {
+  .achievement-toast { bottom: 4rem; }
+  .hud { font-size: 0.7rem; gap: 0.5rem; padding: 0.3rem 0.6rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .achievement-toast, .hud-gems, .gem-pop, .tree-node--shake { animation: none; }
+  .xp-bar-fill, .radar-fill { transition: none; }
+}
+
+
+/* ═══════════ Portes et mini-jeux ═══════════ */
+.nav-links a.nav-link--locked { opacity: 0.55; }
+
+.gate { width: 100%; padding: 5rem 0; animation: gate-in 0.5s ease; }
+.gate-inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; }
+.gate-intro { color: var(--text-muted); max-width: 52ch; }
+.gate-play { width: 100%; max-width: 560px; margin-top: 0.5rem; padding: 1.5rem; background: var(--card-blue); border: 1px solid var(--sun-gold); border-radius: 8px; box-shadow: 0 0 28px var(--glow-gold); }
+.gate-skip { background: transparent; border-color: transparent; color: var(--text-muted); font-size: 0.82rem; text-decoration: underline; }
+.gate .lock { margin: 0 auto; padding: 0; border: none; background: none; }
+.projects, .skills, .contact { animation: section-reveal 0.6s ease; }
+@keyframes gate-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes section-reveal { from { opacity: 0; } to { opacity: 1; } }
+
+.hunt-hud { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0.8rem; }
+.hunt-hud span:first-child { color: var(--sun-gold); }
+.hunt-field { position: relative; height: 280px; border: 1px dashed var(--border); border-radius: 6px; overflow: hidden; background: var(--night-blue); }
+.hunt-start { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--sun-gold); border-color: var(--sun-gold); background: transparent; padding: 0.7em 2em; }
+.hunt-gem { position: absolute; width: 58px; height: 58px; padding: 0; font-size: 1.8rem; border-radius: 50%; background: rgba(245,200,66,0.14); border-color: var(--sun-gold); transform: translate(-50%, -50%); animation: gem-appear 0.18s ease; }
+.hunt-gem:focus-visible { outline: 2px solid var(--sky-cyan); outline-offset: 2px; }
+@keyframes gem-appear { from { transform: translate(-50%, -50%) scale(0.4); } to { transform: translate(-50%, -50%) scale(1); } }
+
+.memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+.memory-card { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.3rem; background: var(--night-blue); border: 1px solid var(--border); border-radius: 6px; color: var(--text); transition: transform 0.2s, border-color 0.2s; }
+.memory-card:hover { border-color: var(--sky-cyan); }
+.memory-card:focus-visible { outline: 2px solid var(--sky-cyan); outline-offset: 2px; }
+.memory-card--shown { background: var(--mid-blue); border-color: var(--sky-cyan); }
+.memory-card--matched { border-color: var(--sun-gold); box-shadow: 0 0 12px var(--glow-gold); }
+.memory-card-back { font-size: 1.6rem; color: var(--text-muted); }
+.memory-card-name { font-size: 0.68rem; text-align: center; line-height: 1.2; }
+
+@media (max-width: 480px) {
+  .memory-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gate, .projects, .skills, .contact, .hunt-gem { animation: none; }
+}

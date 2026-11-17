@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import {
+  GEMS_PER_PROJECT, GEMS_PER_HIDDEN_GEM, GEMS_PER_GATE, GATE_TARGET, GATE_ACHIEVEMENT, BONUS,
+  AchievementToast, XpBar, Hud, Gate, GemHunt, MemoryGame, LightsOut, Radar, Vault, SkillTree,
+} from './GameSystems'
+
+// ── Sauvegarde locale (la partie reprend où le visiteur s'est arrêté) ───────
+const SAVE_KEY = 'portfolio-save-v2'
+function loadSave() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {} } catch { return {} }
+}
 
 // ── Particules flottantes Hero ──────────────────────────────────────────────
 function Particles() {
@@ -78,11 +88,17 @@ function Particles() {
 }
 
 // ── Séparateur décoratif ────────────────────────────────────────────────────
-function SectionDivider() {
+function SectionDivider({ id, found, onFound }) {
+  const [justFound, setJustFound] = useState(false)
   return (
-    <div className="section-divider" aria-hidden="true">
+    <div className="section-divider">
       <div className="section-divider-line" />
-      <div className="section-divider-gem">
+      <button
+        type="button"
+        className={`section-divider-gem ${found ? 'section-divider-gem--found' : ''}`}
+        onClick={() => { if (!found) { setJustFound(true); onFound(id) } }}
+        aria-label={found ? 'Gemme trouvée' : 'Gemme cachée'}
+      >
         <svg width="18" height="18" viewBox="0 0 18 18">
           <polygon points="9,0 18,9 9,18 0,9" fill="none" stroke="url(#dg)" strokeWidth="1.2"/>
           <polygon points="9,3 15,9 9,15 3,9" fill="url(#dg2)" opacity="0.4"/>
@@ -98,7 +114,8 @@ function SectionDivider() {
             </linearGradient>
           </defs>
         </svg>
-      </div>
+        {justFound && <span className="gem-pop">+{GEMS_PER_HIDDEN_GEM} 💎</span>}
+      </button>
       <div className="section-divider-line" />
     </div>
   )
@@ -142,7 +159,7 @@ function ProjectModal({ project, onClose }) {
         <button className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
 
         {/* Image / vidéo / galerie */}
-        <div className="modal-media">
+        {(hasGallery || ytId || project.image) && <div className="modal-media">
           {hasGallery ? (
             <div className="modal-gallery">
               <div className="modal-gallery-main">
@@ -191,7 +208,7 @@ function ProjectModal({ project, onClose }) {
           ) : project.image ? (
             <img src={project.image} alt={project.title} className="modal-img" />
           ) : null}
-        </div>
+        </div>}
 
         {/* Contenu */}
         <div className="modal-body">
@@ -280,23 +297,141 @@ function MentionsLegalesModal({ onClose }) {
 // ── App principal ────────────────────────────────────────────────────────────
 function App() {
   const [scrolled, setScrolled]                   = useState(false)
-  const [skillIndex, setSkillIndex]               = useState(0)
-  const [selectedSkill, setSelectedSkill]         = useState(null)
   const [carouselIndex, setCarouselIndex]         = useState(0)
   const [carouselPaused, setCarouselPaused]       = useState(false)
   const [emailRevealed, setEmailRevealed]         = useState(false)
   const [activeProject, setActiveProject]         = useState(null)
   const [showMentions, setShowMentions]           = useState(false)
 
+  // ── Système de jeu ──
+  const [initial]                                 = useState(loadSave)
+  const [seenProjects, setSeenProjects]           = useState(initial.seenProjects ?? [])
+  const [foundGems, setFoundGems]                 = useState(initial.foundGems ?? [])
+  const [learned, setLearned]                     = useState(initial.learned ?? [])
+  const [bonusOpen, setBonusOpen]                 = useState(initial.bonusOpen ?? [])
+  const [unlocked, setUnlocked]                   = useState(initial.achievements ?? [])
+  const [toastQueue, setToastQueue]               = useState([])
+  const [gates, setGates]                         = useState(initial.gates ?? {})
+  const [scrollTarget, setScrollTarget]           = useState(null)
+  const gatesRef = useRef(gates)
+  gatesRef.current = gates
+  const unlockedRef = useRef(initial.achievements ?? [])
+
+  const wonGates     = Object.values(gates).filter(v => v === 'won').length
+  const clearedCount = Object.keys(gates).length
+  const open1 = !!gates.g1
+  const open2 = open1 && !!gates.g2
+  const open3 = open2 && !!gates.g3
+  const level = 1 + clearedCount
+  const earned  = seenProjects.length * GEMS_PER_PROJECT + foundGems.length * GEMS_PER_HIDDEN_GEM + wonGates * GEMS_PER_GATE
+  const spent   = BONUS.filter(b => bonusOpen.includes(b.id)).reduce((n, b) => n + b.cost, 0)
+  const balance = earned - spent
+
+  const unlock = (id) => {
+    if (unlockedRef.current.includes(id)) return
+    unlockedRef.current = [...unlockedRef.current, id]
+    setUnlocked(unlockedRef.current)
+    setToastQueue(q => [...q, id])
+  }
+  const dismissToast = () => setToastQueue(q => q.slice(1))
+
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50)
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        gates, seenProjects, foundGems, learned, bonusOpen, achievements: unlocked,
+      }))
+    } catch { /* stockage indisponible : la partie ne sera pas sauvegardée */ }
+  }, [gates, seenProjects, foundGems, learned, bonusOpen, unlocked])
+
+  const openProject = (project) => {
+    setActiveProject(project)
+    unlock('quest')
+    if (!seenProjects.includes(project.title)) {
+      const next = [...seenProjects, project.title]
+      setSeenProjects(next)
+      if (next.length >= 3) unlock('collector')
+    }
+  }
+  const findGem = (id) => {
+    if (foundGems.includes(id)) return
+    setFoundGems([...foundGems, id])
+    unlock('gem')
+  }
+  const learnSkill = (skill) => {
+    if (learned.includes(skill.name)) return
+    const next = [...learned, skill.name]
+    setLearned(next)
+    unlock('inspector')
+    if (next.length >= skills.length) unlock('tree')
+  }
+  const unlockBonus = (bonus) => {
+    if (bonusOpen.includes(bonus.id) || balance < bonus.cost) return
+    setBonusOpen([...bonusOpen, bonus.id])
+    unlock('vault')
+  }
+  const resetGame = () => {
+    if (!window.confirm('Recommencer une nouvelle partie ? Ta progression sera effacée.')) return
+    try { localStorage.removeItem(SAVE_KEY) } catch { /* rien */ }
+    window.location.reload()
+  }
+
+  // Une porte franchie (gagnée ou passée) débloque la section suivante
+  const clearGate = (id, won) => {
+    if (gatesRef.current[id]) return
+    setGates({ ...gatesRef.current, [id]: won ? 'won' : 'skipped' })
+    if (won) unlock(GATE_ACHIEVEMENT[id])
+    setScrollTarget(GATE_TARGET[id])
+  }
+  const goTo = (id) => {
+    const open = { projets: open1, competences: open2, contact: open3 }[id]
+    const currentGate = !open1 ? 'g1' : !open2 ? 'g2' : 'g3'
+    document.getElementById(open ? id : `porte-${currentGate}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const navLink = (id, label, open) => (
+    <li>
+      <a href={`#${id}`} className={open ? '' : 'nav-link--locked'} onClick={(e) => { e.preventDefault(); goTo(id) }}>
+        {open ? '' : '🔒 '}{label}
+      </a>
+    </li>
+  )
+  useEffect(() => {
+    if (!scrollTarget) return
+    const t = setTimeout(() => {
+      document.getElementById(scrollTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setScrollTarget(null)
+    }, 80)
+    return () => clearTimeout(t)
+  }, [scrollTarget])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50)
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      const p = max > 0 ? window.scrollY / max : 0
+      if (p > 0.98 && Object.keys(gatesRef.current).length >= 3) unlock('end')
+    }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   const projects = [
     {
+      title: "Speak Up — Mirror",
+      stats: { sys: 4, lvl: 1, prog: 3, narr: 2 },
+      category: "Système Design",
+      tech: ["Unity", "WebGL", "C#", "WebSocket"],
+      description: "Stage chez Le Baobab — mini-jeu Mirror pour aider les enfants malades à communiquer avec les soignants",
+      details: `Speak Up est un projet de l'association Le Baobab : des jeux conçus pour aider les enfants malades à communiquer avec les professionnels de santé.
+
+Pendant mon stage de deux mois, en télétravail au sein d'une équipe de game designers et de web designers, j'ai conçu Mirror, l'un des trois mini-jeux du projet, avec une mécanique autour des pensées et des échanges.
+
+Le jeu est développé sous Unity en WebGL pour tourner dans le navigateur. J'ai aussi travaillé sur la communication WebSocket avec le site des web designers, en testant avec un serveur local.
+
+Ce stage m'a permis de concevoir une mécanique unique pour un public précis, de travailler en équipe avec des réunions de suivi hebdomadaires et de relier mon travail de system design à un vrai projet à impact.`
+    },
+    {
       title: "Asteroid Field",
+      stats: { sys: 2, lvl: 1, prog: 3, narr: 0 },
       category: "Programmation",
       tech: ["Unity", "C#"],
       image: "https://img.itch.zone/aW1nLzI0MzI2MDI4LnBuZw==/315x250%23c/85I6PP.png",
@@ -310,6 +445,7 @@ Ce projet m'a permis de pratiquer le prototypage rapide sous contrainte de temps
     },
     {
       title: "Double Trouble",
+      stats: { sys: 4, lvl: 1, prog: 3, narr: 1 },
       category: "Système Design Ennemis",
       tech: ["Unity", "C#"],
       youtubeUrl: "https://www.youtube.com/watch?v=G2ia7PcqPoQ",
@@ -322,6 +458,7 @@ Ce projet m'a permis d'approfondir ma maîtrise de l'IA comportementale en Unity
     },
     {
       title: "The Silence",
+      stats: { sys: 0, lvl: 5, prog: 0, narr: 2 },
       category: "Level Design",
       tech: ["UE5", "Modeling"],
       image: "https://img.itch.zone/aW1nLzE5OTMyODY0LnBuZw==/315x250%23c/p9OWjZ.png",
@@ -335,6 +472,7 @@ Les outils de modélisation intégrés d'UE5 ont été utilisés pour créer cer
     },
     {
       title: "cntxt.exe",
+      stats: { sys: 0, lvl: 4, prog: 1, narr: 3 },
       category: "Level Design",
       tech: ["UE5", "Modeling", "Lumen", "Shaders"],
       image: "/cntxt-1.png",
@@ -350,6 +488,7 @@ Techniquement, j'ai utilisé le Modeling Mode d'UE5 pour modéliser les élémen
     },
     {
       title: "Unjudged",
+      stats: { sys: 4, lvl: 2, prog: 2, narr: 3 },
       category: "Projet de Fin d'Année",
       tech: ["UE5", "Blueprints", "Destruction", "Behaviour Tree"],
       image: "/unjudged-1.png",
@@ -365,6 +504,8 @@ Le projet intègre un système de destruction dynamique : les éléments du déc
 J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre comportement et caractère, en utilisant les Behaviour Trees d'Unreal Engine 5.`,
     },
   ]
+
+  const orderedProjects = projects
 
   // Carrousel automatique
   useEffect(() => {
@@ -390,9 +531,14 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
     { fallback: { label: "SVN", color: "#609926" }, name: "TortoiseSVN", desc: "Versioning de projets Unreal Engine." }
   ]
 
-  const SKILLS_VISIBLE = 5
-  const canPrev = skillIndex > 0
-  const canNext = skillIndex < skills.length - SKILLS_VISIBLE
+  const S = Object.fromEntries(skills.map(sk => [sk.name, sk]))
+  const memoryTools = [S['Unity'], S['Unreal Engine 5'], S['Git'], S['Miro'], S['Inky'], S['Twine']]
+  const skillBranches = [
+    { name: 'Moteurs',    skills: [S['Unity'], S['Visual Studio Code'], S['Git']] },
+    { name: 'Unreal',     skills: [S['Unreal Engine 5'], S['TortoiseSVN']] },
+    { name: 'Production', skills: [S['Miro'], S['Google Suite']] },
+    { name: 'Narratif',   skills: [S['Inky'], S['Twine']] },
+  ]
 
   return (
     <div className="portfolio">
@@ -400,6 +546,10 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
       {/* ── Modals ── */}
       {activeProject && <ProjectModal project={activeProject} onClose={() => setActiveProject(null)} />}
       {showMentions  && <MentionsLegalesModal onClose={() => setShowMentions(false)} />}
+
+      <XpBar progress={clearedCount / 3} />
+      <Hud level={level} gems={balance} achievements={unlocked.length} />
+      {toastQueue.length > 0 && <AchievementToast id={toastQueue[0]} onDone={dismissToast} />}
 
       {/* ── Navigation ── */}
       <nav className={`nav ${scrolled ? 'nav-scrolled' : ''}`}>
@@ -412,9 +562,9 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
           <ul className="nav-links">
             <li><a href="#accueil">Accueil</a></li>
             <li><a href="#apropos">Profil</a></li>
-            <li><a href="#projets">Projets</a></li>
-            <li><a href="#competences">Outils</a></li>
-            <li><a href="#contact">Me Contacter</a></li>
+            {navLink('projets', 'Projets', open1)}
+            {navLink('competences', 'Outils', open2)}
+            {navLink('contact', 'Me Contacter', open3)}
             <li>
               <a href="/cv.pdf" target="_blank" rel="noopener noreferrer" className="nav-cv-link">
                 CV ↓
@@ -439,7 +589,7 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
             Je maîtrise plusieurs logiciels et je sais prototyper mes idées rapidement.
           </p>
           <div className="hero-cta">
-            <a href="#projets" className="btn btn-primary">Explorer mes travaux</a>
+            <a href="#projets" className="btn btn-primary" onClick={(e) => { e.preventDefault(); goTo('projets') }}>Explorer mes travaux</a>
             <a href="/cv.pdf" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
               Télécharger mon CV
             </a>
@@ -448,7 +598,7 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
         <div className="hero-scroll">Défiler</div>
       </section>
 
-      <SectionDivider />
+      <SectionDivider id="g1" found={foundGems.includes("g1")} onFound={findGem} />
 
       {/* ── À propos ── */}
       <section id="apropos" className="about">
@@ -508,7 +658,14 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
         </div>
       </section>
 
-      <SectionDivider />
+      {!open1 && (
+        <Gate id="g1" level={2} title="Débloque mes projets" intro="Attrape 5 gemmes avant qu’elles ne changent de place." onSkip={() => clearGate('g1', false)}>
+          <GemHunt onWin={() => clearGate('g1', true)} />
+        </Gate>
+      )}
+      {open1 && (
+      <>
+      <SectionDivider id="g2" found={foundGems.includes("g2")} onFound={findGem} />
 
       {/* ── Projets ── */}
       <section id="projets" className="projects">
@@ -527,7 +684,7 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
               className="carousel-track"
               style={{ transform: `translateX(calc(-${carouselIndex * (100 / 3)}% - ${carouselIndex * (1.75 / 3)}rem))` }}
             >
-              {[...projects, ...projects].map((project, index) => {
+              {[...orderedProjects, ...orderedProjects].map((project, index) => {
                 const ytId = getYouTubeId(project.youtubeUrl)
                 // Dans le carrousel : si images[] présent, on affiche image locale, sinon thumbnail YT
                 const showYtThumb = !project.images && !!ytId
@@ -536,10 +693,13 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
                   <div
                     key={index}
                     className="project-card carousel-card"
-                    onClick={() => setActiveProject(project)}
+                    onClick={() => openProject(project)}
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="project-image">
+                      <div className="project-flags">
+                        {seenProjects.includes(project.title) && <span className="project-flag">✓ Exploré</span>}
+                      </div>
                       {showYtThumb ? (
                         <>
                           <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt={project.title} />
@@ -548,6 +708,8 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
                           </div>
                           <span className="project-yt-badge">▶ YouTube</span>
                         </>
+                      ) : !project.image ? (
+                        <div className="project-placeholder" aria-hidden="true"><span>🪞</span></div>
                       ) : (
                         <>
                           <img src={project.image} alt={project.title} />
@@ -581,10 +743,31 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
               />
             ))}
           </div>
+
+          <div className="player-sheet">
+            <div className="player-sheet-radar">
+              <h3 className="player-sheet-title">Fiche de personnage</h3>
+              <Radar projects={projects} seen={seenProjects} />
+              <p className="player-sheet-caption">
+                {seenProjects.length}/{projects.length} projets explorés. Ouvre des projets pour remplir le radar.
+              </p>
+            </div>
+            <Vault balance={balance} openIds={bonusOpen} onUnlock={unlockBonus} />
+          </div>
         </div>
       </section>
 
-      <SectionDivider />
+      </>
+      )}
+
+      {open1 && !open2 && (
+        <Gate id="g2" level={3} title="Débloque mes outils" intro="Retrouve les paires d’outils que j’utilise." onSkip={() => clearGate('g2', false)}>
+          <MemoryGame tools={memoryTools} onWin={() => clearGate('g2', true)} />
+        </Gate>
+      )}
+      {open2 && (
+      <>
+      <SectionDivider id="g3" found={foundGems.includes("g3")} onFound={findGem} />
 
       {/* ── Compétences ── */}
       <section id="competences" className="skills">
@@ -594,61 +777,21 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
             <h2 className="section-title">Logiciels utilisés</h2>
           </div>
 
-          <div className="skills-box">
-            <button
-              className={`skills-arrow skills-arrow-left ${!canPrev ? 'skills-arrow-disabled' : ''}`}
-              onClick={() => canPrev && setSkillIndex(i => i - 1)}
-              aria-label="Précédent"
-            >❮</button>
-
-            <div className="skills-slider-track">
-              {skills.slice(skillIndex, skillIndex + SKILLS_VISIBLE).map((skill, index) => (
-                <div
-                  key={skillIndex + index}
-                  className={`skill-pill ${selectedSkill?.name === skill.name ? 'skill-pill-active' : ''}`}
-                  onClick={() => setSelectedSkill(selectedSkill?.name === skill.name ? null : skill)}
-                >
-                  <div className="skill-pill-icon">
-                    {skill.svg
-                      ? <img src={`data:image/svg+xml;utf8,${encodeURIComponent(skill.svg)}`} alt={skill.name} className="skill-pill-logo" />
-                      : skill.logos
-                        ? <img src={skill.logos[0].src} alt={skill.logos[0].alt} className="skill-pill-logo" />
-                        : <span className="skill-pill-fallback" style={{ borderColor: skill.fallback.color, color: skill.fallback.color }}>{skill.fallback.label}</span>
-                    }
-                  </div>
-                  <span className="skill-pill-name">{skill.name}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              className={`skills-arrow skills-arrow-right ${!canNext ? 'skills-arrow-disabled' : ''}`}
-              onClick={() => canNext && setSkillIndex(i => i + 1)}
-              aria-label="Suivant"
-            >❯</button>
-          </div>
-
-          {selectedSkill && (
-            <div className="skill-desc-panel">
-              <span className="skill-desc-name">{selectedSkill.name}</span>
-              <p className="skill-desc-text">{selectedSkill.desc}</p>
-            </div>
-          )}
-
-          <div className="skills-dots">
-            {Array.from({ length: skills.length - SKILLS_VISIBLE + 1 }).map((_, i) => (
-              <button
-                key={i}
-                className={`skills-dot ${i === skillIndex ? 'skills-dot-active' : ''}`}
-                onClick={() => setSkillIndex(i)}
-                aria-label={`Aller à la position ${i + 1}`}
-              />
-            ))}
-          </div>
+          <SkillTree branches={skillBranches} learned={learned} onLearn={learnSkill} />
         </div>
       </section>
 
-      <SectionDivider />
+      </>
+      )}
+
+      {open2 && !open3 && (
+        <Gate id="g3" level={4} title="Débloque le contact" intro="Dernier verrou : résous la grille pour ouvrir la dernière porte." onSkip={() => clearGate('g3', false)}>
+          <LightsOut onWin={() => clearGate('g3', true)} />
+        </Gate>
+      )}
+      {open3 && (
+      <>
+      <SectionDivider id="g4" found={foundGems.includes("g4")} onFound={findGem} />
 
       {/* ── Contact ── */}
       <section id="contact" className="contact">
@@ -661,7 +804,7 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
             <div className="contact-link-email-wrapper">
               <div
                 className="contact-link contact-link-email"
-                onClick={() => setEmailRevealed(!emailRevealed)}
+                onClick={() => { if (!emailRevealed) unlock('contact'); setEmailRevealed(o => !o) }}
               >
                 <span>✉ Email</span>
               </div>
@@ -679,11 +822,17 @@ J'ai conçu et implémenté cinq ennemis distincts, chacun avec son propre compo
         </div>
       </section>
 
+      </>
+      )}
+
       {/* ── Footer ── */}
       <footer className="footer">
         <p>© 2026 — Portfolio Game Designer</p>
         <button className="footer-mentions" onClick={() => setShowMentions(true)}>
           Mentions légales
+        </button>
+        <button className="footer-mentions" onClick={resetGame}>
+          Nouvelle partie
         </button>
       </footer>
 
